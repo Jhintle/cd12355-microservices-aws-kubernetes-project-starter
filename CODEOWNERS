@@ -1,1 +1,7 @@
-*           @udacity/public-content-admin
+README.md                   @udacity/description
+analytics/*                 @udacity/python-app
+db/*                        @udacity/database-content
+
+README-for-users.md         @cherkavi
+README-implementation.md    @cherkavi
+Dockerfile                  @cherkavi

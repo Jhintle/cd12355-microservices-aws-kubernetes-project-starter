@@ -1,0 +1,8 @@
+CODEOWNERS
+db
+README-for-users.md
+README-implementation.md
+README.md
+.git
+.github
+.DB_Store
