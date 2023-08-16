@@ -29,13 +29,22 @@ aws ecr describe-repositories
 aws ecr list-images  --repository-name $AWS_ECR_REPO_NAME
 ```
 
+### create CodeBuild role
+```sh
+ROLE_NAME=aws-codebuild-ecr-push
+policy_name=aws-codebuild-ecr-push-policy
+aws iam create-role --role-name $ROLE_NAME --assume-role-policy-document file://codebuild-iam-role.json
+aws iam put-role-policy --role-name $ROLE_NAME --policy-name $policy_name --policy-document file://codebuild-iam-policy.json
+
+aws iam get-role --role-name  $ROLE_NAME
+```
+
 ### create CodeBuild project
 ```sh
-mv codebuild-project.json codebuild-project-template.json
+GITHUB_REPO_URL="https://github.com/cherkavi/udacity-aws-devops-eks"
+AWS_ROLE_IAM=`aws iam get-role --role-name  $ROLE_NAME --output text --query 'Role.Arn'`
 
-GITHUB_REPO_URL="https://github.com/cherkavi/aws-codebuild"
 sed "s|<GITHUB_REPO_URL>|$GITHUB_REPO_URL|" codebuild-project-template.json > codebuild-project.json
-AWS_ROLE_IAM='arn:aws:iam::330996503740:role/service-role/codebuild-a-service-role'
 sed --in-place "s|<AWS_ROLE_IAM>|$AWS_ROLE_IAM|" codebuild-project.json
 
 aws codebuild create-project --cli-input-json file://codebuild-project.json
