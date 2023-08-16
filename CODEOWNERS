@@ -1,4 +1,5 @@
 README.md                   @udacity/description
+LICENSE.txt                 @udacity/license
 analytics/*                 @udacity/python-app
 db/*                        @udacity/database-content
 

@@ -1,0 +1,45 @@
+{
+        "project": {
+            "name": "aws-dockerbuild-coworkingspace",
+            "source": {
+                "type": "GITHUB",
+                "location": "<GITHUB_REPO_URL>",
+                "gitCloneDepth": 1,
+                "gitSubmodulesConfig": {
+                    "fetchSubmodules": false
+                },
+                "buildspec": "buildspec.yml",
+                "reportBuildStatus": false,
+                "insecureSsl": false
+            },
+            "sourceVersion": "main",
+            "artifacts": {
+                "type": "NO_ARTIFACTS"
+            },
+            "cache": {
+                "type": "NO_CACHE"
+            },
+            "environment": {
+                "type": "LINUX_CONTAINER",
+                "image": "aws/codebuild/standard:7.0",
+                "computeType": "BUILD_GENERAL1_SMALL",
+                "environmentVariables": [
+                    {"name": "AWS_REGION", "type": "string"},
+                    {"name": "AWS_ECR_REPOSITORY_NAME", "type": "string"},
+                    {"name": "CONTAINER_TAG", "type": "string"}
+                ],
+                "privilegedMode": true,
+                "imagePullCredentialsType": "CODEBUILD"
+            },
+            "serviceRole": "<AWS_ROLE_IAM>",
+            "logsConfig": {
+                "cloudWatchLogs": {
+                    "status": "DISABLED"
+                },
+                "s3Logs": {
+                    "status": "DISABLED"
+                }
+            },
+            "projectVisibility": "PRIVATE"
+        }
+}
