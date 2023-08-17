@@ -2,7 +2,7 @@
 1. Set up a Postgres database with a Helm Chart.
 2. ~~Create a Dockerfile for the Python application.~~
     ~~a. You'll submit the Dockerfile~~
-3. Write a simple build pipeline with AWS CodeBuild to build and push a Docker image into AWS ECR.
+3. ~~Write a simple build pipeline with AWS CodeBuild to build and push a Docker image into AWS ECR.~~
     ~~a. Take a screenshot of AWS CodeBuild pipeline for your project submission.~~
     ~~b. Take a screenshot of AWS ECR repository for the application's repository.~~
 4. Create a service and deployment using Kubernetes configuration files to deploy the application.

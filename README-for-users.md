@@ -28,6 +28,10 @@ export AWS_S3_CODEBUILD_LOGS="${CODEBUILD_PROJECT_NAME}-s3-logs"
 
 export ROLE_EKS_CLUSTER=aws-eks-cluster
 export ROLE_EKS_NODEGROUP=aws-eks-nodegroup
+
+export HELM_BITNAMI_REPO=bitnami-repo
+
+export K8S_SERVICE_POSTGRESQL=service-coworking-postgresql
 ```
 
 #### ECR: Elastic Container Registry
@@ -146,7 +150,7 @@ aws iam delete-role --role-name $ROLE_EKS_CLUSTER
 # create role
 aws iam create-role --role-name $ROLE_EKS_NODEGROUP --assume-role-policy-document file://eks-node-iam-role.json
 # attach policies
-for POLICY_NAME in AmazonEKSWorkerNodePolicy AmazonEC2ContainerRegistryReadOnly AmazonEKS_CNI_Policy AmazonEMRReadOnlyAccessPolicy_v2; do
+for POLICY_NAME in AmazonEKSWorkerNodePolicy AmazonEC2ContainerRegistryReadOnly AmazonEKS_CNI_Policy AmazonEMRReadOnlyAccessPolicy_v2 AmazonEBSCSIDriverPolicy; do
     POLICY_ARN=`aws iam list-policies --query "Policies[?PolicyName=='$POLICY_NAME'].Arn" | jq -r .[]`
     echo "attach policy to role:"$POLICY_ARN
     aws iam attach-role-policy --role-name $ROLE_EKS_NODEGROUP --policy-arn $POLICY_ARN
@@ -176,6 +180,10 @@ x-www-browser https://${AWS_REGION}.console.aws.amazon.com/eks
 echo "add EKS.NodeGroup with role: ${ROLE_EKS_NODEGROUP}"
 CLUSTER_NAME=`aws eks list-clusters | jq -r .clusters[] | head -n 1`
 x-www-browser https://${AWS_REGION}.console.aws.amazon.com/eks/home?region=${AWS_REGION}#/clusters/${CLUSTER_NAME}/add-node-group 
+
+# check cluster
+aws eks describe-cluster --name $CLUSTER_NAME --query "cluster.identity.oidc.issuer" 
+kubectl get pods -n kube-system
 ```
 
 ##### kubectl login
@@ -185,6 +193,47 @@ echo $CLUSTER_NAME
 aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
 ```
 
+##### install cloudwatch agent
+```sh
+CLUSTER_NAME=`aws eks list-clusters | jq -r .clusters[] | head -n 1`
+echo $CLUSTER_NAME
+
+ClusterName=$CLUSTER_NAME
+RegionName=$AWS_REGION
+FluentBitHttpPort='2020'
+FluentBitReadFromHead='Off'
+FluentBitReadFromTail='On'
+FluentBitHttpServer='On'
+curl https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/quickstart/cwagent-fluent-bit-quickstart.yaml | sed 's/{{cluster_name}}/'${ClusterName}'/;s/{{region_name}}/'${RegionName}'/;s/{{http_server_toggle}}/"'${FluentBitHttpServer}'"/;s/{{http_server_port}}/"'${FluentBitHttpPort}'"/;s/{{read_from_head}}/"'${FluentBitReadFromHead}'"/;s/{{read_from_tail}}/"'${FluentBitReadFromTail}'"/' | kubectl apply -f -
+
+kubectl get pods -n amazon-cloudwatch
+```
+
+##### set up a Postgres database with a Helm Chart.
+```sh
+# setup helm
+echo $HELM_BITNAMI_REPO
+helm repo add $HELM_BITNAMI_REPO https://charts.bitnami.com/bitnami
+# helm repo list
+
+# install postgresql as a service 
+helm install $K8S_SERVICE_POSTGRESQL $HELM_BITNAMI_REPO/postgresql
+
+# check installation
+kubectl get svc
+kubectl get pods
+```
+
+##### SQL.DDL
+```sh
+export POSTGRES_PASSWORD=$(kubectl get secret --namespace default service-coworking-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
+echo $POSTGRES_PASSWORD
+
+# forward local port 5432 to service 
+kubectl port-forward --namespace default svc/$K8S_SERVICE_POSTGRESQL 5432:5432
+# open in another terminal 
+PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432
+```
 
 ## deploy changes 
 
