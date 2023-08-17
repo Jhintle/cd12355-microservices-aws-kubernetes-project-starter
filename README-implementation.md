@@ -13,10 +13,10 @@
     d. Take a screenshot of kubectl describe deployment <SERVICE_NAME>.
 6. Check AWS CloudWatch for application logs.
     a. Take a screenshot of AWS CloudWatch logs for the application.
-7. Create a README.md file in your solution that serves as documentation  
-   for your user to detail how your deployment process works and how   
-   the user can deploy changes. The details should not simply rehash  
-   what you have done on a step by step basis. Instead, it should help  
-   an experienced software developer understand the technologies and  
-   tools in the build and deploy process as well as provide them insight  
-   into how they would release new builds.
+7. ~~Create a README.md file in your solution that serves as documentation~~  
+   ~~for your user to detail how your deployment process works and how~~   
+   ~~the user can deploy changes. The details should not simply rehash~~  
+   ~~what you have done on a step by step basis. Instead, it should help~~  
+   ~~an experienced software developer understand the technologies and~~  
+   ~~tools in the build and deploy process as well as provide them insight~~  
+   ~~into how they would release new builds.~~
