@@ -16,8 +16,18 @@
 				"ecr:InitiateLayerUpload",
 				"ecr:UploadLayerPart",
 				"ecr:CompleteLayerUpload",
-				"ecr:PutImage"
-			]
+				"ecr:PutImage",
+
+                "codebuild:CreateReportGroup",
+                "codebuild:CreateReport",
+                "codebuild:UpdateReport",
+                "codebuild:BatchPutTestCases",
+                "codebuild:BatchPutCodeCoverages",
+
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ]
 		},
 		{
 			"Effect": "Allow",

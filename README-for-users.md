@@ -111,11 +111,23 @@ aws codebuild list-projects
 
 ## deploy changes 
 ### build docker image and push it to ECR
+*start build*
 [!!! init env variables !!!](#create-aws-infrastructure)
 ```sh
-BUILD_VERSION=1.0.1
-aws codebuild start-build --project-name $CODEBUILD_PROJECT_NAME --environment-variables CONTAINER_TAG=$BUILD_VERSION
+BUILD_VERSION=1.0.4
+# start build - type parameter is mandatory !!! 
+aws codebuild start-build --project-name $CODEBUILD_PROJECT_NAME --environment-variables-override '[{"name":"CONTAINER_TAG","value":"'$BUILD_VERSION'","type":"PLAINTEXT"}]'
 
-aws codebuild list-builds-for-project --project-name $CODEBUILD_PROJECT_NAME
-aws codebuild batch-get-builds --ids aws-dockerbuild-coworkingspace:e8a61490-ce3b-4079-98f6-50db93a3299d
+## list of builds in project
+# aws codebuild list-builds-for-project --project-name $CODEBUILD_PROJECT_NAME
+## check one build 
+# aws codebuild batch-get-builds --ids aws-dockerbuild-coworkingspace:e8a61490-ce3b-4079-98f6-50db93a3299d
+```
+*check logs*
+```sh
+```
+
+### check docker image after the build with your BUILD_VERSION
+```sh
+aws ecr list-images  --repository-name $AWS_ECR_REPO_NAME
 ```
