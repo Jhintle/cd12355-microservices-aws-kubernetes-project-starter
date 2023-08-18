@@ -1,5 +1,5 @@
 # Project Instructions
-1. Set up a Postgres database with a Helm Chart.
+1. ~~Set up a Postgres database with a Helm Chart.~~
 2. ~~Create a Dockerfile for the Python application.~~
     ~~a. You'll submit the Dockerfile~~
 3. ~~Write a simple build pipeline with AWS CodeBuild to build and push a Docker image into AWS ECR.~~
@@ -9,8 +9,14 @@
 5. You'll submit all the Kubernetes config files used for deployment (ie YAML files).
     a. Take a screenshot of running the kubectl get svc command.
     b. Take a screenshot of kubectl get pods.
-    c. Take a screenshot of kubectl describe svc <DATABASE_SERVICE_NAME>.
+    ~~c. Take a screenshot of kubectl describe svc <DATABASE_SERVICE_NAME>.~~
     d. Take a screenshot of kubectl describe deployment <SERVICE_NAME>.
+    
+   The deployment/ contains Kubernetes config files that:
+    ~~share sensitive environment variables in a separate secrets file~~
+    ~~share plaintext environment variables in a configmap file~~
+    ~~create the service’s deployment in Kubernetes.~~
+    create the service’s services in Kubernetes.
 6. Check AWS CloudWatch for application logs.
     a. Take a screenshot of AWS CloudWatch logs for the application.
 7. ~~Create a README.md file in your solution that serves as documentation~~  

@@ -24,7 +24,7 @@ export ROLE_CODEBUILD=aws-codebuild-ecr-push
 export ROLE_CODEBUILD_POLICY=aws-codebuild-ecr-push-policy
 export CODEBUILD_PROJECT_NAME=aws-dockerbuild-coworkingspace
 export CODEBUILD_GITHUB_REPO_URL="https://github.com/cherkavi/udacity-aws-devops-eks"
-export AWS_S3_CODEBUILD_LOGS="${CODEBUILD_PROJECT_NAME}-s3-logs"
+export AWS_S3_CODEBUILD_LOGS="${CODEBUILD_PROJECT_NAME}-s3-logs2"
 
 export ROLE_EKS_CLUSTER=aws-eks-cluster
 export ROLE_EKS_NODEGROUP=aws-eks-nodegroup
@@ -35,6 +35,7 @@ export K8S_SERVICE_POSTGRESQL=service-coworking-postgresql
 
 export K8S_APP_SECRET_NAME=analytic-db-credentials
 export K8S_APP_CONFIG=analytic-config
+export BUILD_VERSION=1.0.3
 ```
 
 #### ECR: Elastic Container Registry
@@ -254,23 +255,26 @@ kubectl get pvc
 
 #### connect to PostgreSQL 
 [init variables](#create-aws-infrastructure)
+##### db port forwarding
 ```sh
 # forward local port 5432 to service 
 kubectl port-forward --namespace default svc/$K8S_SERVICE_POSTGRESQL 5432:5432
-
+```
+##### db connect 
+```sh
 # open in another terminal 
 export POSTGRES_PASSWORD=$(kubectl get secret --namespace default service-coworking-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
 echo $POSTGRES_PASSWORD
 PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432
 ```
 
+------------------
 ## deploy changes 
 
 ### build docker image and push it to ECR
 *start build*
 [!!! init env variables !!!](#create-aws-infrastructure)
 ```sh
-BUILD_VERSION=1.0.4
 # start build - type parameter is mandatory !!! 
 aws codebuild start-build --project-name $CODEBUILD_PROJECT_NAME --environment-variables-override '[{"name":"CONTAINER_TAG","value":"'$BUILD_VERSION'","type":"PLAINTEXT"}]'
 
@@ -310,7 +314,9 @@ docker pull  $docker_image_remote_name
 POSTGRES_PASSWORD=$(kubectl get secret --namespace default service-coworking-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
 # echo $POSTGRES_PASSWORD
 POSTGRES_USERNAME=postgres
-kubectl create secret generic $K8S_APP_SECRET_NAME --from-literal=username=$POSTGRES_USERNAME --from-literal=password=$POSTGRES_PASSWORD
+kubectl create secret generic $K8S_APP_SECRET_NAME \
+--from-literal=POSTGRES_USERNAME=$POSTGRES_USERNAME \
+--from-literal=POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 ```
 *check*
 ```sh
@@ -320,7 +326,6 @@ kubectl get secret $K8S_APP_SECRET_NAME
 ```sh
 # kubectl delete secret $K8S_APP_SECRET_NAME
 ```
-
 
 #### EKS configmap for app
 [!!! init env variables !!!](#create-aws-infrastructure)
@@ -340,11 +345,36 @@ kubectl create configmap $K8S_APP_CONFIG \
 ```sh
 kubectl get configmap $K8S_APP_CONFIG -o json
 ```
-
 *delete*
 ```sh
 # kubectl delete configmap $K8S_APP_CONFIG
 ```
 
+### fill up databse with SQL.DDL
+[initiate port forwarding](#db-port-forwarding)
+```sh
+for each_file in `ls db/*`; do
+    echo "execute file: $each_file"
+    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432 -f $each_file
+done
+```
+
 ### deployment to EKS from ECR
-[kubectl login](#kubectl-login)
+[init env variables](#create-aws-infrastructure)  
+[kubectl login](#kubectl-login)  
+```sh
+
+sed "s|<K8S_APP_SECRET_NAME>|$K8S_APP_SECRET_NAME|" eks-deployment-app.yaml-template > eks-deployment-app.yaml
+sed --in-place "s|<BUILD_VERSION>|$BUILD_VERSION|" eks-deployment-app.yaml
+sed --in-place "s|<K8S_APP_CONFIG>|$K8S_APP_CONFIG|" eks-deployment-app.yaml
+sed --in-place "s|<APP_PORT>|$APP_PORT|" eks-deployment-app.yaml
+aws_ecr_repository_uri=`aws ecr describe-repositories --repository-names $AWS_ECR_REPO_NAME | jq -r '.repositories[0].repositoryUri'`
+docker_image_remote_name=$aws_ecr_repository_uri:$BUILD_VERSION
+sed --in-place "s|<DOCKER_IMAGE_URI>|$docker_image_remote_name|" eks-deployment-app.yaml
+
+kubectl apply -f eks-deployment-app.yaml
+# kubectl delete -f eks-deployment-app.yaml
+
+kubectl get deployments
+kubectl get pods
+```

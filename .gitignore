@@ -1,2 +1,3 @@
 codebuild-project.json
+eks-deployment-app.yaml
 *.gz
