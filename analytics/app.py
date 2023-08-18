@@ -18,7 +18,7 @@ Base = declarative_base()
 
 class Token(Base):
     __tablename__ = "tokens"
-    user_id = Column(Integer)
+    id = Column(Integer, primary_key=True)
 
 
 @app.route("/health_check")
