@@ -32,9 +32,13 @@ export ROLE_EKS_NODEGROUP=aws-eks-nodegroup
 export HELM_BITNAMI_REPO=bitnami-repo
 
 export K8S_SERVICE_POSTGRESQL=service-coworking-postgresql
+
+export K8S_APP_SECRET_NAME=analytic-db-credentials
+export K8S_APP_CONFIG=analytic-config
 ```
 
 #### ECR: Elastic Container Registry
+[init variables](#create-aws-infrastructure)
 *create*
 ```sh
 aws ecr create-repository  --repository-name $AWS_ECR_REPO_NAME
@@ -55,6 +59,7 @@ aws ecr delete-repository  --repository-name $AWS_ECR_REPO_NAME
 
 #### CodeBuild
 ##### CodeBuild role
+[init variables](#create-aws-infrastructure)
 *create*
 ```sh
 aws iam create-role --role-name $ROLE_CODEBUILD --assume-role-policy-document file://codebuild-iam-role.json
@@ -73,6 +78,7 @@ aws iam get-role-policy --role-name $ROLE_CODEBUILD --policy-name $ROLE_CODEBUIL
 ```
 
 ##### CodeBuild S3 bucket for logs
+[init variables](#create-aws-infrastructure)
 *create*
 ```sh
 aws s3 mb s3://$AWS_S3_CODEBUILD_LOGS
@@ -90,6 +96,7 @@ aws s3 ls --recursive s3://$AWS_S3_CODEBUILD_LOGS
 ```
 
 ##### CodeBuild project
+[init variables](#create-aws-infrastructure)
 *create*
 ```sh
 ROLE_CODEBUILD_IAM=`aws iam get-role --role-name  $ROLE_CODEBUILD --output text --query 'Role.Arn'`
@@ -109,7 +116,6 @@ aws codebuild create-project --cli-input-json file://codebuild-project.json
 aws codebuild batch-get-projects --names $CODEBUILD_PROJECT_NAME
 aws codebuild list-projects 
 ```
-
 *delete*
 ```sh
 # echo "delete project by name: "$CODEBUILD_PROJECT_NAME
@@ -117,6 +123,7 @@ aws codebuild list-projects
 ```
 
 #### EKS
+[init variables](#create-aws-infrastructure)
 ##### EKS Cluster
 *role for cluster create*
 ```sh
@@ -145,6 +152,7 @@ aws iam delete-role --role-name $ROLE_EKS_CLUSTER
 ```
 
 ##### EKS Node Group
+[init variables](#create-aws-infrastructure)
 *role for node group create*
 ```sh
 # create role
@@ -187,6 +195,7 @@ kubectl get pods -n kube-system
 ```
 
 ##### kubectl login
+[init variables](#create-aws-infrastructure)
 ```sh
 CLUSTER_NAME=`aws eks list-clusters | jq -r .clusters[] | head -n 1`
 echo $CLUSTER_NAME
@@ -194,6 +203,7 @@ aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
 ```
 
 ##### install cloudwatch agent
+[init variables](#create-aws-infrastructure)
 ```sh
 CLUSTER_NAME=`aws eks list-clusters | jq -r .clusters[] | head -n 1`
 echo $CLUSTER_NAME
@@ -207,31 +217,50 @@ FluentBitHttpServer='On'
 curl https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/quickstart/cwagent-fluent-bit-quickstart.yaml | sed 's/{{cluster_name}}/'${ClusterName}'/;s/{{region_name}}/'${RegionName}'/;s/{{http_server_toggle}}/"'${FluentBitHttpServer}'"/;s/{{http_server_port}}/"'${FluentBitHttpPort}'"/;s/{{read_from_head}}/"'${FluentBitReadFromHead}'"/;s/{{read_from_tail}}/"'${FluentBitReadFromTail}'"/' | kubectl apply -f -
 
 kubectl get pods -n amazon-cloudwatch
+# cloudwatch-agent 
+# fluent-bit
 ```
 
 ##### set up a Postgres database with a Helm Chart.
+[init variables](#create-aws-infrastructure)
 ```sh
 # setup helm
 echo $HELM_BITNAMI_REPO
 helm repo add $HELM_BITNAMI_REPO https://charts.bitnami.com/bitnami
 # helm repo list
-
-# install postgresql as a service 
-helm install $K8S_SERVICE_POSTGRESQL $HELM_BITNAMI_REPO/postgresql
-
-# check installation
-kubectl get svc
-kubectl get pods
 ```
 
-##### SQL.DDL
+workaround for postgresql storage
 ```sh
-export POSTGRES_PASSWORD=$(kubectl get secret --namespace default service-coworking-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
-echo $POSTGRES_PASSWORD
+# kubectl delete pv local-storage
+NODE_1_NAME=` kubectl get nodes -o jsonpath='{.items[*].metadata.name}'  | tr " " "\n" | head -n 1`
+echo $NODE_1_NAME
+sed "s|<NODE_INSTANCE_NAME>|$NODE_1_NAME|" eks-localstorage.yaml-template | kubectl apply -f -
+```
 
+```sh
+# install postgresql as a service 
+helm install $K8S_SERVICE_POSTGRESQL $HELM_BITNAMI_REPO/postgresql --set global.storageClass=local-storage
+helm list
+# helm uninstall $K8S_SERVICE_POSTGRESQL
+
+## check installation
+kubectl get svc
+kubectl get pods
+kubectl get pv
+kubectl get pvc
+# kubectl get events
+```
+
+#### connect to PostgreSQL 
+[init variables](#create-aws-infrastructure)
+```sh
 # forward local port 5432 to service 
 kubectl port-forward --namespace default svc/$K8S_SERVICE_POSTGRESQL 5432:5432
+
 # open in another terminal 
+export POSTGRES_PASSWORD=$(kubectl get secret --namespace default service-coworking-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
+echo $POSTGRES_PASSWORD
 PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432
 ```
 
@@ -271,6 +300,50 @@ aws_ecr_repository_uri=`aws ecr describe-repositories --repository-names $AWS_EC
 docker_image_remote_name=$aws_ecr_repository_uri:$BUILD_VERSION
 echo $docker_image_remote_name
 docker pull  $docker_image_remote_name
+```
+
+### EKS application configuration 
+[!!! init env variables !!!](#create-aws-infrastructure)
+#### EKS secret for app
+*create*
+```sh
+POSTGRES_PASSWORD=$(kubectl get secret --namespace default service-coworking-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
+# echo $POSTGRES_PASSWORD
+POSTGRES_USERNAME=postgres
+kubectl create secret generic $K8S_APP_SECRET_NAME --from-literal=username=$POSTGRES_USERNAME --from-literal=password=$POSTGRES_PASSWORD
+```
+*check*
+```sh
+kubectl get secret $K8S_APP_SECRET_NAME
+```
+*delete*
+```sh
+# kubectl delete secret $K8S_APP_SECRET_NAME
+```
+
+
+#### EKS configmap for app
+[!!! init env variables !!!](#create-aws-infrastructure)
+*create*
+```sh
+APP_PORT=5153
+DB_HOST=$K8S_SERVICE_POSTGRESQL
+DB_PORT="5432"
+DB_NAME="postgres"
+kubectl create configmap $K8S_APP_CONFIG \
+--from-literal=APP_PORT=$APP_PORT \
+--from-literal=DB_HOST=$DB_HOST \
+--from-literal=DB_PORT=$DB_PORT \
+--from-literal=DB_NAME=$DB_NAME
+```
+*check*
+```sh
+kubectl get configmap $K8S_APP_CONFIG -o json
+```
+
+*delete*
+```sh
+# kubectl delete configmap $K8S_APP_CONFIG
 ```
 
 ### deployment to EKS from ECR
