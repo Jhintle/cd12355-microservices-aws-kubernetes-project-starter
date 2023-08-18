@@ -35,7 +35,8 @@ export K8S_SERVICE_POSTGRESQL=service-coworking-postgresql
 
 export K8S_APP_SECRET_NAME=analytic-db-credentials
 export K8S_APP_CONFIG=analytic-config
-export BUILD_VERSION=1.0.3
+export K8S_DEPLOYMENT_NAME=analytics
+export BUILD_VERSION=1.0.5
 ```
 
 #### ECR: Elastic Container Registry
@@ -220,6 +221,9 @@ curl https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-i
 kubectl get pods -n amazon-cloudwatch
 # cloudwatch-agent 
 # fluent-bit
+
+# cloud watch check log ouptut for container
+x-www-browser https://${AWS_REGION}.console.aws.amazon.com/cloudwatch/home?region=${AWS_REGION}#container-insights:infrastructure
 ```
 
 ##### set up a Postgres database with a Helm Chart.
@@ -272,7 +276,7 @@ PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p
 ## deploy changes 
 
 ### build docker image and push it to ECR
-*start build*
+#### start build
 [!!! init env variables !!!](#create-aws-infrastructure)
 ```sh
 # start build - type parameter is mandatory !!! 
@@ -284,14 +288,14 @@ aws codebuild start-build --project-name $CODEBUILD_PROJECT_NAME --environment-v
 # aws codebuild batch-get-builds --ids aws-dockerbuild-coworkingspace:e8a61490-ce3b-4079-98f6-50db93a3299d
 ```
 
-*check logs*
+#### check logs
 ```sh
-OBJECT_ID=`aws s3 ls --recursive s3://$AWS_S3_CODEBUILD_LOGS | head -n 1 | awk '{print $4}'`
+OBJECT_ID=`aws s3 ls --recursive s3://$AWS_S3_CODEBUILD_LOGS | tail -n 1 | awk '{print $4}'`
 aws s3api get-object --bucket $AWS_S3_CODEBUILD_LOGS --key $OBJECT_ID $OBJECT_ID
 vim $OBJECT_ID
 ```
 
-*check generated images with your BUILD_VERSION*
+#### check generated images with your BUILD_VERSION
 ```sh
 aws ecr list-images  --repository-name $AWS_ECR_REPO_NAME
 
@@ -363,7 +367,7 @@ done
 [init env variables](#create-aws-infrastructure)  
 [kubectl login](#kubectl-login)  
 ```sh
-
+## deployment
 sed "s|<K8S_APP_SECRET_NAME>|$K8S_APP_SECRET_NAME|" eks-deployment-app.yaml-template > eks-deployment-app.yaml
 sed --in-place "s|<BUILD_VERSION>|$BUILD_VERSION|" eks-deployment-app.yaml
 sed --in-place "s|<K8S_APP_CONFIG>|$K8S_APP_CONFIG|" eks-deployment-app.yaml
@@ -371,10 +375,35 @@ sed --in-place "s|<APP_PORT>|$APP_PORT|" eks-deployment-app.yaml
 aws_ecr_repository_uri=`aws ecr describe-repositories --repository-names $AWS_ECR_REPO_NAME | jq -r '.repositories[0].repositoryUri'`
 docker_image_remote_name=$aws_ecr_repository_uri:$BUILD_VERSION
 sed --in-place "s|<DOCKER_IMAGE_URI>|$docker_image_remote_name|" eks-deployment-app.yaml
+sed --in-place "s|<K8S_DEPLOYMENT_NAME>|$K8S_DEPLOYMENT_NAME|" eks-deployment-app.yaml
 
 kubectl apply -f eks-deployment-app.yaml
 # kubectl delete -f eks-deployment-app.yaml
 
+## service
+sed "s|<APP_PORT>|$APP_PORT|" eks-service-app.yaml-template > eks-service-app.yaml
+sed --in-place "s|<K8S_DEPLOYMENT_NAME>|$K8S_DEPLOYMENT_NAME|" eks-service-app.yaml
+kubectl apply -f eks-service-app.yaml
+```
+### check deployment 
+```sh
+kubectl get services
+kubectl get service $K8S_DEPLOYMENT_NAME -o yaml
 kubectl get deployments
 kubectl get pods
 ```
+
+## redeploy application
+1. push your chages 
+```sh
+git push
+```
+2. [change version of your application](#create-aws-infrastructure)  
+3. [run codebuild](#build-docker-image-and-push-it-to-ecr)
+4. check your image or [check logs](#check-logs)
+```sh
+echo $BUILD_VERSION
+aws ecr list-images  --repository-name $AWS_ECR_REPO_NAME | grep $BUILD_VERSION
+```
+5. [deploy to EKS](#deployment-to-eks-from-ecr)
+6. [check new version](#check-deployment )

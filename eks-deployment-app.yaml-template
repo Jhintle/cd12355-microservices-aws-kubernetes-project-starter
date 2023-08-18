@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: analytics
+  name: <K8S_DEPLOYMENT_NAME>
   labels:
-    name: analytics
+    name: <K8S_DEPLOYMENT_NAME>
 spec:
   replicas: 1
   selector:
     matchLabels:
-      service: analytics
+      service: <K8S_DEPLOYMENT_NAME>
   template:
     metadata:
       labels:
-        service: analytics
+        service: <K8S_DEPLOYMENT_NAME>
     spec:
       containers:
       - name: app

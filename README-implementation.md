@@ -5,13 +5,12 @@
 3. ~~Write a simple build pipeline with AWS CodeBuild to build and push a Docker image into AWS ECR.~~
     ~~a. Take a screenshot of AWS CodeBuild pipeline for your project submission.~~
     ~~b. Take a screenshot of AWS ECR repository for the application's repository.~~
-4. Create a service and deployment using Kubernetes configuration files to deploy the application.
+4. ~~Create a service and deployment using Kubernetes configuration files to deploy the application.~~
 5. You'll submit all the Kubernetes config files used for deployment (ie YAML files).
     a. Take a screenshot of running the kubectl get svc command.
-    b. Take a screenshot of kubectl get pods.
+    b. ~~Take a screenshot of kubectl get pods.~~
     ~~c. Take a screenshot of kubectl describe svc <DATABASE_SERVICE_NAME>.~~
-    d. Take a screenshot of kubectl describe deployment <SERVICE_NAME>.
-    
+    ~~d. Take a screenshot of kubectl describe deployment <SERVICE_NAME>.~~    
    The deployment/ contains Kubernetes config files that:
     ~~share sensitive environment variables in a separate secrets file~~
     ~~share plaintext environment variables in a configmap file~~
